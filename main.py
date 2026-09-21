@@ -13,8 +13,10 @@ from PyQt5.QtGui import QFont
 # پنجره اصلی نرم‌افزار
 # ==========================================================
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, full_name="کاربر"):
         super().__init__()
+
+        self.full_name = full_name
 
         self.setWindowTitle("سیستم مدیریت کتابخانه")
         self.resize(1050, 650)
@@ -87,7 +89,7 @@ class MainWindow(QMainWindow):
         content_layout.setContentsMargins(35, 30, 35, 30)
         content_layout.setSpacing(15)
 
-        welcome = QLabel("خوش آمدید، مدیر سیستم 👋")
+        welcome = QLabel(f"خوش آمدید، {self.full_name} 👋")
         welcome.setFont(QFont("Tahoma", 18, QFont.Bold))
         welcome.setStyleSheet("color: #1a3b5c;")
         content_layout.addWidget(welcome)
@@ -320,6 +322,7 @@ class LoginWindow(QWidget):
         username = self.username_input.text().strip()
         password = self.password_input.text().strip()
 
+        # بررسی خالی نبودن فیلدها
         if username == "" or password == "":
             QMessageBox.warning(
                 self,
@@ -328,11 +331,24 @@ class LoginWindow(QWidget):
             )
             return
 
-        if username == "admin" and password == "1234":
-            # پنجره اصلی را در متغیر نگه می‌داریم تا بسته نشود
-            self.main_window = MainWindow()
+        # بررسی نام کاربری و رمز از دیتابیس
+        user = database.fetch_one(
+            """
+            SELECT * FROM users
+            WHERE username = ? AND password = ?
+            """,
+            (username, password)
+        )
+
+        # اگر کاربر در دیتابیس پیدا شد
+        if user is not None:
+            full_name = user["full_name"]
+
+            # نام کاربر را به پنجره اصلی می‌فرستیم
+            self.main_window = MainWindow(full_name)
             self.main_window.show()
             self.close()
+
         else:
             QMessageBox.critical(
                 self,
@@ -341,6 +357,7 @@ class LoginWindow(QWidget):
             )
             self.password_input.clear()
             self.password_input.setFocus()
+    
 
 database.initialize_database()
 # ==========================================================
