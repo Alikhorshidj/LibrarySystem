@@ -1,4 +1,5 @@
 import sys
+import database
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QMainWindow, QLabel, QLineEdit,
     QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -341,7 +342,7 @@ class LoginWindow(QWidget):
             self.password_input.clear()
             self.password_input.setFocus()
 
-
+database.initialize_database()
 # ==========================================================
 # اجرای برنامه
 # ==========================================================
