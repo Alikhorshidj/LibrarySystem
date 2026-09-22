@@ -10,7 +10,383 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 
+# ==========================================================
+# پنجره مدیریت کتاب‌ها
+# ==========================================================
+class BooksWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
+        self.setWindowTitle("مدیریت کتاب‌ها")
+        self.resize(1000, 650)
+
+        self.create_ui()
+        self.load_categories()
+        self.load_books()
+
+    def create_ui(self):
+        # ---------- عنوان ----------
+        title = QLabel("📖 مدیریت کتاب‌ها")
+        title.setStyleSheet("""
+            color: #1a3b5c;
+            font-size: 18px;
+            font-weight: bold;
+        """)
+
+        description = QLabel(
+            "در این بخش می‌توانید کتاب جدید ثبت کنید، جست‌وجو کنید یا حذف کنید."
+        )
+        description.setStyleSheet("color: #718096;")
+
+        # ---------- فرم افزودن کتاب ----------
+        form_frame = QFrame()
+        form_frame.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border: 1px solid #dce3ea;
+                border-radius: 8px;
+            }
+        """)
+
+        form_layout = QGridLayout()
+        form_layout.setContentsMargins(20, 18, 20, 18)
+        form_layout.setHorizontalSpacing(15)
+        form_layout.setVerticalSpacing(10)
+
+        self.title_input = QLineEdit()
+        self.title_input.setPlaceholderText("مثال: سمفونی مردگان")
+
+        self.author_input = QLineEdit()
+        self.author_input.setPlaceholderText("مثال: عباس معروفی")
+
+        self.publisher_input = QLineEdit()
+        self.publisher_input.setPlaceholderText("مثال: نشر ققنوس")
+
+        self.isbn_input = QLineEdit()
+        self.isbn_input.setPlaceholderText("مثال: 9786000000000")
+
+        self.category_combo = QComboBox()
+
+        self.copies_input = QLineEdit()
+        self.copies_input.setPlaceholderText("مثال: 3")
+        self.copies_input.setText("1")
+
+        form_layout.addWidget(QLabel("عنوان کتاب: *"), 0, 0)
+        form_layout.addWidget(self.title_input, 0, 1)
+
+        form_layout.addWidget(QLabel("نویسنده: *"), 0, 2)
+        form_layout.addWidget(self.author_input, 0, 3)
+
+        form_layout.addWidget(QLabel("ناشر:"), 1, 0)
+        form_layout.addWidget(self.publisher_input, 1, 1)
+
+        form_layout.addWidget(QLabel("شابک:"), 1, 2)
+        form_layout.addWidget(self.isbn_input, 1, 3)
+
+        form_layout.addWidget(QLabel("دسته‌بندی:"), 2, 0)
+        form_layout.addWidget(self.category_combo, 2, 1)
+
+        form_layout.addWidget(QLabel("تعداد نسخه: *"), 2, 2)
+        form_layout.addWidget(self.copies_input, 2, 3)
+
+        self.add_button = QPushButton("➕ ثبت کتاب")
+        self.add_button.setMinimumHeight(38)
+        self.add_button.clicked.connect(self.add_book)
+
+        self.clear_button = QPushButton("پاک کردن فرم")
+        self.clear_button.setMinimumHeight(38)
+        self.clear_button.setStyleSheet("""
+            QPushButton {
+                background-color: #718096;
+            }
+            QPushButton:hover {
+                background-color: #536273;
+            }
+        """)
+        self.clear_button.clicked.connect(self.clear_form)
+
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.clear_button)
+        buttons_layout.addWidget(self.add_button)
+
+        form_layout.addLayout(buttons_layout, 3, 0, 1, 4)
+
+        form_frame.setLayout(form_layout)
+
+        # ---------- جست‌وجو و حذف ----------
+        search_layout = QHBoxLayout()
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("🔍 جست‌وجو بر اساس عنوان، نویسنده یا شابک...")
+        self.search_input.textChanged.connect(self.load_books)
+
+        self.delete_button = QPushButton("🗑 حذف کتاب انتخاب‌شده")
+        self.delete_button.setMinimumHeight(36)
+        self.delete_button.setStyleSheet("""
+            QPushButton {
+                background-color: #c0392b;
+            }
+            QPushButton:hover {
+                background-color: #a93226;
+            }
+        """)
+        self.delete_button.clicked.connect(self.delete_book)
+
+        search_layout.addWidget(self.search_input, 1)
+        search_layout.addWidget(self.delete_button)
+
+        # ---------- جدول کتاب‌ها ----------
+        self.books_table = QTableWidget()
+        self.books_table.setColumnCount(7)
+        self.books_table.setHorizontalHeaderLabels([
+            "شناسه", "عنوان کتاب", "نویسنده", "ناشر",
+            "شابک", "دسته‌بندی", "نسخه‌های موجود"
+        ])
+
+        self.books_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.books_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.books_table.setAlternatingRowColors(True)
+        self.books_table.verticalHeader().setVisible(False)
+
+        header = self.books_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+
+        # ---------- چیدمان اصلی ----------
+        layout = QVBoxLayout()
+        layout.setContentsMargins(25, 25, 25, 25)
+        layout.setSpacing(14)
+
+        layout.addWidget(title)
+        layout.addWidget(description)
+        layout.addWidget(form_frame)
+        layout.addLayout(search_layout)
+        layout.addWidget(self.books_table)
+
+        self.setLayout(layout)
+
+        # ---------- ظاهر ----------
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #f4f7fb;
+                font-family: Tahoma;
+                font-size: 12px;
+            }
+
+            QLabel {
+                color: #334155;
+            }
+
+            QLineEdit, QComboBox {
+                background-color: white;
+                border: 1px solid #b8c4d0;
+                border-radius: 5px;
+                padding: 7px;
+                min-height: 20px;
+            }
+
+            QLineEdit:focus, QComboBox:focus {
+                border: 2px solid #2c7be5;
+            }
+
+            QPushButton {
+                background-color: #2c7be5;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 14px;
+                font-weight: bold;
+            }
+
+            QPushButton:hover {
+                background-color: #1b65c2;
+            }
+
+            QTableWidget {
+                background-color: white;
+                border: 1px solid #dce3ea;
+                border-radius: 6px;
+                gridline-color: #e7edf3;
+            }
+
+            QHeaderView::section {
+                background-color: #1a3b5c;
+                color: white;
+                padding: 8px;
+                border: none;
+                font-weight: bold;
+            }
+
+            QTableWidget::item:selected {
+                background-color: #cfe4ff;
+                color: #1a3b5c;
+            }
+        """)
+
+    def load_categories(self):
+        """خواندن دسته‌بندی‌ها از دیتابیس و نمایش در ComboBox"""
+        self.category_combo.clear()
+
+        categories = database.fetch_all(
+            "SELECT id, name FROM categories ORDER BY name"
+        )
+
+        for category in categories:
+            self.category_combo.addItem(category["name"], category["id"])
+
+    def add_book(self):
+        """ثبت کتاب جدید در دیتابیس"""
+        title = self.title_input.text().strip()
+        author = self.author_input.text().strip()
+        publisher = self.publisher_input.text().strip()
+        isbn = self.isbn_input.text().strip()
+        category_id = self.category_combo.currentData()
+        copies_text = self.copies_input.text().strip()
+
+        if title == "" or author == "" or copies_text == "":
+            QMessageBox.warning(
+                self,
+                "اطلاعات ناقص",
+                "لطفاً عنوان کتاب، نویسنده و تعداد نسخه را وارد کنید."
+            )
+            return
+
+        try:
+            copies = int(copies_text)
+
+            if copies <= 0:
+                raise ValueError
+
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "مقدار نامعتبر",
+                "تعداد نسخه باید یک عدد صحیح بزرگ‌تر از صفر باشد."
+            )
+            self.copies_input.setFocus()
+            return
+
+        database.execute_query(
+            """
+            INSERT INTO books (
+                title, author, publisher, isbn,
+                category_id, total_copies, available_copies
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                title, author, publisher, isbn,
+                category_id, copies, copies
+            )
+        )
+
+        QMessageBox.information(
+            self,
+            "ثبت موفق",
+            f"کتاب «{title}» با موفقیت ثبت شد."
+        )
+
+        self.clear_form()
+        self.load_books()
+
+    def load_books(self):
+        """نمایش کتاب‌ها در جدول و اعمال جست‌وجو"""
+        search_text = self.search_input.text().strip()
+
+        query = """
+            SELECT
+                books.id,
+                books.title,
+                books.author,
+                books.publisher,
+                books.isbn,
+                categories.name AS category_name,
+                books.available_copies
+            FROM books
+            LEFT JOIN categories ON books.category_id = categories.id
+        """
+
+        parameters = ()
+
+        if search_text != "":
+            query += """
+                WHERE books.title LIKE ?
+                   OR books.author LIKE ?
+                   OR books.isbn LIKE ?
+            """
+            search_value = f"%{search_text}%"
+            parameters = (search_value, search_value, search_value)
+
+        query += " ORDER BY books.id DESC"
+
+        books = database.fetch_all(query, parameters)
+
+        self.books_table.setRowCount(0)
+
+        for row_index, book in enumerate(books):
+            self.books_table.insertRow(row_index)
+
+            values = [
+                str(book["id"]),
+                book["title"] or "",
+                book["author"] or "",
+                book["publisher"] or "-",
+                book["isbn"] or "-",
+                book["category_name"] or "-",
+                str(book["available_copies"])
+            ]
+
+            for column_index, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignCenter)
+                self.books_table.setItem(row_index, column_index, item)
+
+    def clear_form(self):
+        """خالی‌کردن فرم ثبت کتاب"""
+        self.title_input.clear()
+        self.author_input.clear()
+        self.publisher_input.clear()
+        self.isbn_input.clear()
+        self.copies_input.setText("1")
+        self.category_combo.setCurrentIndex(0)
+        self.title_input.setFocus()
+
+    def delete_book(self):
+        """حذف کتاب انتخاب‌شده از دیتابیس"""
+        selected_row = self.books_table.currentRow()
+
+        if selected_row == -1:
+            QMessageBox.warning(
+                self,
+                "انتخاب کتاب",
+                "ابتدا یک کتاب را از جدول انتخاب کنید."
+            )
+            return
+
+        book_id = self.books_table.item(selected_row, 0).text()
+        book_title = self.books_table.item(selected_row, 1).text()
+
+        answer = QMessageBox.question(
+            self,
+            "تأیید حذف",
+            f"آیا از حذف کتاب «{book_title}» مطمئن هستید؟",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if answer == QMessageBox.Yes:
+            database.execute_query(
+                "DELETE FROM books WHERE id = ?",
+                (book_id,)
+            )
+
+            QMessageBox.information(
+                self,
+                "حذف موفق",
+                "کتاب انتخاب‌شده حذف شد."
+            )
+
+            self.load_books()
 # ==========================================================
 # پنجره اصلی نرم‌افزار
 # ==========================================================
