@@ -387,6 +387,376 @@ class BooksWindow(QDialog):
             )
 
             self.load_books()
+
+# ==========================================================
+# پنجره مدیریت اعضای کتابخانه
+# ==========================================================
+class MembersWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle("مدیریت اعضا")
+        self.resize(1000, 650)
+
+        self.create_ui()
+        self.load_members()
+
+    def create_ui(self):
+        # ---------- عنوان ----------
+        title = QLabel("👥 مدیریت اعضای کتابخانه")
+        title.setStyleSheet("""
+            color: #1a3b5c;
+            font-size: 18px;
+            font-weight: bold;
+        """)
+
+        description = QLabel(
+            "در این بخش می‌توانید اعضای کتابخانه را ثبت، جست‌وجو یا حذف کنید."
+        )
+        description.setStyleSheet("color: #718096;")
+
+        # ---------- فرم ثبت عضو ----------
+        form_frame = QFrame()
+        form_frame.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border: 1px solid #dce3ea;
+                border-radius: 8px;
+            }
+        """)
+
+        form_layout = QGridLayout()
+        form_layout.setContentsMargins(20, 18, 20, 18)
+        form_layout.setHorizontalSpacing(15)
+        form_layout.setVerticalSpacing(10)
+
+        self.full_name_input = QLineEdit()
+        self.full_name_input.setPlaceholderText("مثال: علی احمدی")
+
+        self.national_code_input = QLineEdit()
+        self.national_code_input.setPlaceholderText("مثال: 0012345678")
+
+        self.phone_input = QLineEdit()
+        self.phone_input.setPlaceholderText("مثال: 09121234567")
+
+        self.email_input = QLineEdit()
+        self.email_input.setPlaceholderText("مثال: ali@email.com")
+
+        form_layout.addWidget(QLabel("نام و نام خانوادگی: *"), 0, 0)
+        form_layout.addWidget(self.full_name_input, 0, 1)
+
+        form_layout.addWidget(QLabel("کد ملی:"), 0, 2)
+        form_layout.addWidget(self.national_code_input, 0, 3)
+
+        form_layout.addWidget(QLabel("شماره تلفن:"), 1, 0)
+        form_layout.addWidget(self.phone_input, 1, 1)
+
+        form_layout.addWidget(QLabel("ایمیل:"), 1, 2)
+        form_layout.addWidget(self.email_input, 1, 3)
+
+        self.add_button = QPushButton("➕ ثبت عضو")
+        self.add_button.setMinimumHeight(38)
+        self.add_button.clicked.connect(self.add_member)
+
+        self.clear_button = QPushButton("پاک کردن فرم")
+        self.clear_button.setMinimumHeight(38)
+        self.clear_button.setStyleSheet("""
+            QPushButton {
+                background-color: #718096;
+            }
+
+            QPushButton:hover {
+                background-color: #536273;
+            }
+        """)
+        self.clear_button.clicked.connect(self.clear_form)
+
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.clear_button)
+        buttons_layout.addWidget(self.add_button)
+
+        form_layout.addLayout(buttons_layout, 2, 0, 1, 4)
+
+        form_frame.setLayout(form_layout)
+
+        # ---------- جست‌وجو و حذف ----------
+        search_layout = QHBoxLayout()
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText(
+            "🔍 جست‌وجو بر اساس نام، کد ملی یا شماره تلفن..."
+        )
+        self.search_input.textChanged.connect(self.load_members)
+
+        self.delete_button = QPushButton("🗑 حذف عضو انتخاب‌شده")
+        self.delete_button.setMinimumHeight(36)
+        self.delete_button.setStyleSheet("""
+            QPushButton {
+                background-color: #c0392b;
+            }
+
+            QPushButton:hover {
+                background-color: #a93226;
+            }
+        """)
+        self.delete_button.clicked.connect(self.delete_member)
+
+        search_layout.addWidget(self.search_input, 1)
+        search_layout.addWidget(self.delete_button)
+
+        # ---------- جدول اعضا ----------
+        self.members_table = QTableWidget()
+        self.members_table.setColumnCount(6)
+        self.members_table.setHorizontalHeaderLabels([
+            "شناسه",
+            "نام و نام خانوادگی",
+            "کد ملی",
+            "شماره تلفن",
+            "ایمیل",
+            "تاریخ عضویت"
+        ])
+
+        self.members_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.members_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.members_table.setAlternatingRowColors(True)
+        self.members_table.verticalHeader().setVisible(False)
+
+        header = self.members_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+
+        # ---------- چیدمان صفحه ----------
+        layout = QVBoxLayout()
+        layout.setContentsMargins(25, 25, 25, 25)
+        layout.setSpacing(14)
+
+        layout.addWidget(title)
+        layout.addWidget(description)
+        layout.addWidget(form_frame)
+        layout.addLayout(search_layout)
+        layout.addWidget(self.members_table)
+
+        self.setLayout(layout)
+
+        # ---------- ظاهر ----------
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #f4f7fb;
+                font-family: Tahoma;
+                font-size: 12px;
+            }
+
+            QLabel {
+                color: #334155;
+            }
+
+            QLineEdit {
+                background-color: white;
+                border: 1px solid #b8c4d0;
+                border-radius: 5px;
+                padding: 7px;
+                min-height: 20px;
+            }
+
+            QLineEdit:focus {
+                border: 2px solid #2c7be5;
+            }
+
+            QPushButton {
+                background-color: #2c7be5;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 14px;
+                font-weight: bold;
+            }
+
+            QPushButton:hover {
+                background-color: #1b65c2;
+            }
+
+            QTableWidget {
+                background-color: white;
+                border: 1px solid #dce3ea;
+                border-radius: 6px;
+                gridline-color: #e7edf3;
+            }
+
+            QHeaderView::section {
+                background-color: #1a3b5c;
+                color: white;
+                padding: 8px;
+                border: none;
+                font-weight: bold;
+            }
+
+            QTableWidget::item:selected {
+                background-color: #cfe4ff;
+                color: #1a3b5c;
+            }
+        """)
+
+    def add_member(self):
+        """ثبت عضو جدید در دیتابیس"""
+        full_name = self.full_name_input.text().strip()
+        national_code = self.national_code_input.text().strip()
+        phone = self.phone_input.text().strip()
+        email = self.email_input.text().strip()
+
+        if full_name == "":
+            QMessageBox.warning(
+                self,
+                "اطلاعات ناقص",
+                "لطفاً نام و نام خانوادگی عضو را وارد کنید."
+            )
+            self.full_name_input.setFocus()
+            return
+
+        # جلوگیری از ثبت کد ملی تکراری، در صورتی که وارد شده باشد
+        if national_code != "":
+            duplicate_member = database.fetch_one(
+                "SELECT id FROM members WHERE national_code = ?",
+                (national_code,)
+            )
+
+            if duplicate_member is not None:
+                QMessageBox.warning(
+                    self,
+                    "عضو تکراری",
+                    "عضوی با این کد ملی قبلاً ثبت شده است."
+                )
+                return
+
+        database.execute_query(
+            """
+            INSERT INTO members (
+                full_name, national_code, phone, email, register_date
+            )
+            VALUES (?, ?, ?, ?, date('now'))
+            """,
+            (full_name, national_code, phone, email)
+        )
+
+        QMessageBox.information(
+            self,
+            "ثبت موفق",
+            f"عضو «{full_name}» با موفقیت ثبت شد."
+        )
+
+        self.clear_form()
+        self.load_members()
+
+    def load_members(self):
+        """نمایش اعضا در جدول و اعمال جست‌وجو"""
+        search_text = self.search_input.text().strip()
+
+        query = """
+            SELECT
+                id,
+                full_name,
+                national_code,
+                phone,
+                email,
+                register_date
+            FROM members
+        """
+
+        parameters = ()
+
+        if search_text != "":
+            query += """
+                WHERE full_name LIKE ?
+                   OR national_code LIKE ?
+                   OR phone LIKE ?
+            """
+
+            search_value = f"%{search_text}%"
+            parameters = (search_value, search_value, search_value)
+
+        query += " ORDER BY id DESC"
+
+        members = database.fetch_all(query, parameters)
+
+        self.members_table.setRowCount(0)
+
+        for row_index, member in enumerate(members):
+            self.members_table.insertRow(row_index)
+
+            values = [
+                str(member["id"]),
+                member["full_name"] or "",
+                member["national_code"] or "-",
+                member["phone"] or "-",
+                member["email"] or "-",
+                member["register_date"] or ""
+            ]
+
+            for column_index, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignCenter)
+                self.members_table.setItem(row_index, column_index, item)
+
+    def clear_form(self):
+        """پاک‌کردن فرم ثبت عضو"""
+        self.full_name_input.clear()
+        self.national_code_input.clear()
+        self.phone_input.clear()
+        self.email_input.clear()
+        self.full_name_input.setFocus()
+
+    def delete_member(self):
+        """حذف عضو انتخاب‌شده"""
+        selected_row = self.members_table.currentRow()
+
+        if selected_row == -1:
+            QMessageBox.warning(
+                self,
+                "انتخاب عضو",
+                "ابتدا یک عضو را از جدول انتخاب کنید."
+            )
+            return
+
+        member_id = self.members_table.item(selected_row, 0).text()
+        member_name = self.members_table.item(selected_row, 1).text()
+
+        # عضوی که امانت فعال دارد نباید حذف شود
+        active_loan = database.fetch_one(
+            """
+            SELECT id FROM loans
+            WHERE member_id = ? AND return_date IS NULL
+            """,
+            (member_id,)
+        )
+
+        if active_loan is not None:
+            QMessageBox.warning(
+                self,
+                "امکان حذف وجود ندارد",
+                "این عضو کتاب امانت گرفته و هنوز آن را برنگردانده است."
+            )
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "تأیید حذف",
+            f"آیا از حذف عضو «{member_name}» مطمئن هستید؟",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if answer == QMessageBox.Yes:
+            database.execute_query(
+                "DELETE FROM members WHERE id = ?",
+                (member_id,)
+            )
+
+            QMessageBox.information(
+                self,
+                "حذف موفق",
+                "عضو انتخاب‌شده حذف شد."
+            )
+
+            self.load_members()
 # ==========================================================
 # پنجره اصلی نرم‌افزار
 # ==========================================================
@@ -430,7 +800,7 @@ class MainWindow(QMainWindow):
 
         btn_dashboard.clicked.connect(self.show_dashboard_message)
         btn_books.clicked.connect(self.open_books_window)
-        btn_members.clicked.connect(lambda: self.show_coming_soon("مدیریت اعضا"))
+        btn_members.clicked.connect(self.open_members_window)
         btn_loans.clicked.connect(lambda: self.show_coming_soon("امانت و بازگشت کتاب"))
         btn_reports.clicked.connect(lambda: self.show_coming_soon("گزارش‌ها"))
 
