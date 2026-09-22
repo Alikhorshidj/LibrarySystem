@@ -1417,6 +1417,10 @@ class MainWindow(QMainWindow):
         self.members_window = MembersWindow(self)
         self.members_window.exec_()
 
+    def open_loans_window(self):
+        self.loans_window = LoansWindow(self)
+        self.loans_window.exec_()
+
     def show_dashboard_message(self):
         QMessageBox.information(
             self,
