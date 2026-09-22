@@ -1214,6 +1214,248 @@ class LoansWindow(QDialog):
         self.load_available_books()
         self.load_loans()
 
+# ==========================================================
+# پنجره گزارش‌ها
+# ==========================================================
+class ReportsWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle("گزارش‌های کتابخانه")
+        self.resize(1050, 650)
+
+        self.create_ui()
+        self.load_reports()
+
+    def create_ui(self):
+        title = QLabel("📊 گزارش‌های کتابخانه")
+        title.setStyleSheet("""
+            color: #1a3b5c;
+            font-size: 18px;
+            font-weight: bold;
+        """)
+
+        description = QLabel(
+            "آمار کلی، کتاب‌های امانت‌داده‌شده و موارد دارای دیرکرد."
+        )
+        description.setStyleSheet("color: #718096;")
+
+        # ---------- کارت‌های گزارش ----------
+        cards_layout = QGridLayout()
+        cards_layout.setSpacing(12)
+
+        self.total_books_label = self.create_small_card(
+            "تعداد عنوان کتاب", "#2c7be5"
+        )
+        self.total_members_label = self.create_small_card(
+            "تعداد اعضا", "#00a97f"
+        )
+        self.total_loans_label = self.create_small_card(
+            "کل امانت‌ها", "#8e44ad"
+        )
+        self.total_fines_label = self.create_small_card(
+            "مجموع جریمه‌ها", "#c0392b"
+        )
+
+        cards_layout.addWidget(self.total_books_label[0], 0, 0)
+        cards_layout.addWidget(self.total_members_label[0], 0, 1)
+        cards_layout.addWidget(self.total_loans_label[0], 0, 2)
+        cards_layout.addWidget(self.total_fines_label[0], 0, 3)
+
+        # ---------- جدول کتاب‌های در امانت ----------
+        active_title = QLabel("کتاب‌های در امانت")
+        active_title.setStyleSheet("""
+            color: #1a3b5c;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        """)
+
+        self.active_loans_table = QTableWidget()
+        self.active_loans_table.setColumnCount(5)
+        self.active_loans_table.setHorizontalHeaderLabels([
+            "عنوان کتاب",
+            "نام عضو",
+            "تاریخ امانت",
+            "مهلت بازگشت",
+            "وضعیت"
+        ])
+
+        self.active_loans_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.active_loans_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.active_loans_table.setAlternatingRowColors(True)
+        self.active_loans_table.verticalHeader().setVisible(False)
+        self.active_loans_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Stretch
+        )
+
+        # ---------- دکمه بروزرسانی ----------
+        refresh_button = QPushButton("🔄 بروزرسانی گزارش‌ها")
+        refresh_button.setMinimumHeight(38)
+        refresh_button.clicked.connect(self.load_reports)
+
+        # ---------- چیدمان ----------
+        layout = QVBoxLayout()
+        layout.setContentsMargins(25, 25, 25, 25)
+        layout.setSpacing(12)
+
+        layout.addWidget(title)
+        layout.addWidget(description)
+        layout.addLayout(cards_layout)
+        layout.addWidget(active_title)
+        layout.addWidget(self.active_loans_table)
+        layout.addWidget(refresh_button)
+
+        self.setLayout(layout)
+
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #f4f7fb;
+                font-family: Tahoma;
+                font-size: 12px;
+            }
+
+            QTableWidget {
+                background-color: white;
+                border: 1px solid #dce3ea;
+                border-radius: 6px;
+                gridline-color: #e7edf3;
+            }
+
+            QHeaderView::section {
+                background-color: #1a3b5c;
+                color: white;
+                padding: 8px;
+                border: none;
+                font-weight: bold;
+            }
+
+            QTableWidget::item:selected {
+                background-color: #cfe4ff;
+                color: #1a3b5c;
+            }
+
+            QPushButton {
+                background-color: #2c7be5;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 14px;
+                font-weight: bold;
+            }
+
+            QPushButton:hover {
+                background-color: #1b65c2;
+            }
+        """)
+
+    def create_small_card(self, title, color):
+        """ساخت کارت آماری کوچک برای صفحه گزارش"""
+
+        card = QFrame()
+        card.setMinimumHeight(105)
+
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: white;
+                border: 1px solid #e1e7ee;
+                border-top: 5px solid {color};
+                border-radius: 8px;
+            }}
+        """)
+
+        layout = QVBoxLayout()
+
+        value_label = QLabel("0")
+        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setFont(QFont("Tahoma", 19, QFont.Bold))
+        value_label.setStyleSheet(f"color: {color}; border: none;")
+
+        title_label = QLabel(title)
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet(
+            "color: #607080; border: none; font-size: 11px;"
+        )
+
+        layout.addWidget(value_label)
+        layout.addWidget(title_label)
+
+        card.setLayout(layout)
+
+        return card, value_label
+
+    def load_reports(self):
+        """بارگذاری داده‌های گزارش از دیتابیس"""
+
+        total_books = database.fetch_one(
+            "SELECT COUNT(*) AS total FROM books"
+        )["total"]
+
+        total_members = database.fetch_one(
+            "SELECT COUNT(*) AS total FROM members"
+        )["total"]
+
+        total_loans = database.fetch_one(
+            "SELECT COUNT(*) AS total FROM loans"
+        )["total"]
+
+        total_fines = database.fetch_one(
+            "SELECT COALESCE(SUM(fine_amount), 0) AS total FROM loans"
+        )["total"]
+
+        self.total_books_label[1].setText(str(total_books))
+        self.total_members_label[1].setText(str(total_members))
+        self.total_loans_label[1].setText(str(total_loans))
+        self.total_fines_label[1].setText(f"{total_fines} تومان")
+
+        # فقط امانت‌هایی که هنوز بازگشت داده نشده‌اند
+        active_loans = database.fetch_all("""
+            SELECT
+                books.title AS book_title,
+                members.full_name AS member_name,
+                loans.loan_date,
+                loans.due_date
+            FROM loans
+            INNER JOIN books ON loans.book_id = books.id
+            INNER JOIN members ON loans.member_id = members.id
+            WHERE loans.return_date IS NULL
+            ORDER BY loans.due_date ASC
+        """)
+
+        self.active_loans_table.setRowCount(0)
+        today = date.today()
+
+        for row_index, loan in enumerate(active_loans):
+            self.active_loans_table.insertRow(row_index)
+
+            due_date = date.fromisoformat(loan["due_date"])
+
+            if today > due_date:
+                status = "دیرکرد"
+            else:
+                status = "در امانت"
+
+            values = [
+                loan["book_title"],
+                loan["member_name"],
+                loan["loan_date"],
+                loan["due_date"],
+                status
+            ]
+
+            for column_index, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignCenter)
+
+                if column_index == 4 and status == "دیرکرد":
+                    item.setForeground(Qt.red)
+
+                self.active_loans_table.setItem(
+                    row_index,
+                    column_index,
+                    item
+                )
+
 
 # ==========================================================
 # پنجره اصلی نرم‌افزار
@@ -1260,7 +1502,7 @@ class MainWindow(QMainWindow):
         btn_books.clicked.connect(self.open_books_window)
         btn_members.clicked.connect(self.open_members_window)
         btn_loans.clicked.connect(self.open_loans_window)
-        btn_reports.clicked.connect(lambda: self.show_coming_soon("گزارش‌ها"))
+        btn_reports.clicked.connect(self.open_reports_window)
 
         menu_layout.addWidget(btn_dashboard)
         menu_layout.addWidget(btn_books)
@@ -1310,18 +1552,25 @@ class MainWindow(QMainWindow):
         cards_layout = QGridLayout()
         cards_layout.setSpacing(15)
 
-        cards_layout.addWidget(
-            self.create_stat_card("تعداد کتاب‌ها", "0", "#2c7be5"), 0, 0
+        self.books_count_label = self.create_stat_card(
+            "تعداد کتاب‌ها", "#2c7be5"
         )
-        cards_layout.addWidget(
-            self.create_stat_card("تعداد اعضا", "0", "#00a97f"), 0, 1
+        self.members_count_label = self.create_stat_card(
+            "تعداد اعضا", "#00a97f"
         )
-        cards_layout.addWidget(
-            self.create_stat_card("امانت‌های فعال", "0", "#e8a33d"), 1, 0
+        self.active_loans_count_label = self.create_stat_card(
+            "امانت‌های فعال", "#e8a33d"
         )
-        cards_layout.addWidget(
-            self.create_stat_card("کتاب‌های دیرکرد", "0", "#c0392b"), 1, 1
+        self.overdue_count_label = self.create_stat_card(
+            "کتاب‌های دیرکرد", "#c0392b"
         )
+
+        cards_layout.addWidget(self.books_count_label[0], 0, 0)
+        cards_layout.addWidget(self.members_count_label[0], 0, 1)
+        cards_layout.addWidget(self.active_loans_count_label[0], 1, 0)
+        cards_layout.addWidget(self.overdue_count_label[0], 1, 1)
+
+
 
         content_layout.addLayout(cards_layout)
         content_layout.addStretch()
@@ -1377,10 +1626,12 @@ class MainWindow(QMainWindow):
         """)
         return button
 
-    def create_stat_card(self, title, value, color):
-        """ساخت کارت آماری داشبورد"""
+    def create_stat_card(self, title, color):
+        """ساخت کارت آماری و برگرداندن کارت و برچسب مقدار"""
+
         card = QFrame()
         card.setMinimumSize(240, 130)
+
         card.setStyleSheet(f"""
             QFrame {{
                 background-color: white;
@@ -1389,6 +1640,28 @@ class MainWindow(QMainWindow):
                 border-radius: 9px;
             }}
         """)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(15, 12, 15, 12)
+
+        value_label = QLabel("0")
+        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setFont(QFont("Tahoma", 24, QFont.Bold))
+        value_label.setStyleSheet(f"color: {color}; border: none;")
+
+        title_label = QLabel(title)
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet(
+            "color: #607080; border: none; font-size: 12px;"
+        )
+
+        layout.addWidget(value_label)
+        layout.addWidget(title_label)
+
+        card.setLayout(layout)
+
+        # خروجی: خود کارت و QLabel عدد
+        return card, value_label
 
         layout = QVBoxLayout()
         layout.setContentsMargins(15, 12, 15, 12)
@@ -1412,14 +1685,55 @@ class MainWindow(QMainWindow):
     def open_books_window(self):
         self.books_window = BooksWindow(self)
         self.books_window.exec_()
+        self.refresh_dashboard()
 
     def open_members_window(self):
         self.members_window = MembersWindow(self)
         self.members_window.exec_()
+        self.refresh_dashboard()
 
     def open_loans_window(self):
         self.loans_window = LoansWindow(self)
         self.loans_window.exec_()
+        self.refresh_dashboard()
+
+    def refresh_dashboard(self):
+        """خواندن آمار واقعی از دیتابیس و نمایش در کارت‌های داشبورد"""
+
+        books_count = database.fetch_one(
+            "SELECT COUNT(*) AS total FROM books"
+        )["total"]
+
+        members_count = database.fetch_one(
+            "SELECT COUNT(*) AS total FROM members"
+        )["total"]
+
+        active_loans_count = database.fetch_one(
+            """
+            SELECT COUNT(*) AS total
+            FROM loans
+            WHERE return_date IS NULL
+            """
+        )["total"]
+
+        overdue_count = database.fetch_one(
+            """
+            SELECT COUNT(*) AS total
+            FROM loans
+            WHERE return_date IS NULL
+              AND due_date < date('now')
+            """
+        )["total"]
+
+        self.books_count_label[1].setText(str(books_count))
+        self.members_count_label[1].setText(str(members_count))
+        self.active_loans_count_label[1].setText(str(active_loans_count))
+        self.overdue_count_label[1].setText(str(overdue_count))
+
+    def showEvent(self, event):
+        """هر بار که پنجره اصلی نمایش داده شد، آمار به‌روز شود"""
+        super().showEvent(event)
+        self.refresh_dashboard()
 
     def show_dashboard_message(self):
         QMessageBox.information(
