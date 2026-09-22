@@ -1697,6 +1697,11 @@ class MainWindow(QMainWindow):
         self.loans_window.exec_()
         self.refresh_dashboard()
 
+    def open_reports_window(self):
+        self.reports_window = ReportsWindow(self)
+        self.reports_window.exec_()
+        self.refresh_dashboard()
+
     def refresh_dashboard(self):
         """خواندن آمار واقعی از دیتابیس و نمایش در کارت‌های داشبورد"""
 
