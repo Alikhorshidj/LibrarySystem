@@ -1,9 +1,11 @@
 import sys
 import database
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QMainWindow, QLabel, QLineEdit,
-    QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QMessageBox, QFrame
+    QApplication, QWidget, QMainWindow, QDialog,
+    QLabel, QLineEdit, QPushButton,
+    QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout,
+    QMessageBox, QFrame, QComboBox,
+    QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
