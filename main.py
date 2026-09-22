@@ -1,5 +1,6 @@
 import sys
 import database
+from datetime import date, timedelta
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QMainWindow, QDialog,
     QLabel, QLineEdit, QPushButton,
@@ -757,6 +758,463 @@ class MembersWindow(QDialog):
             )
 
             self.load_members()
+
+# ==========================================================
+# پنجره امانت و بازگشت کتاب
+# ==========================================================
+class LoansWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle("امانت و بازگشت کتاب")
+        self.resize(1050, 680)
+
+        self.create_ui()
+        self.load_members()
+        self.load_available_books()
+        self.load_loans()
+
+    def create_ui(self):
+        # ---------- عنوان ----------
+        title = QLabel("🔄 امانت و بازگشت کتاب")
+        title.setStyleSheet("""
+            color: #1a3b5c;
+            font-size: 18px;
+            font-weight: bold;
+        """)
+
+        description = QLabel(
+            "در این بخش می‌توانید کتاب را به اعضا امانت دهید و بازگشت آن را ثبت کنید."
+        )
+        description.setStyleSheet("color: #718096;")
+
+        # ---------- فرم ثبت امانت ----------
+        form_frame = QFrame()
+        form_frame.setStyleSheet("""
+            QFrame {
+                background-color: white;
+                border: 1px solid #dce3ea;
+                border-radius: 8px;
+            }
+        """)
+
+        form_layout = QGridLayout()
+        form_layout.setContentsMargins(20, 18, 20, 18)
+        form_layout.setHorizontalSpacing(15)
+        form_layout.setVerticalSpacing(10)
+
+        self.member_combo = QComboBox()
+        self.book_combo = QComboBox()
+
+        self.loan_date_input = QLineEdit()
+        self.loan_date_input.setText(date.today().isoformat())
+        self.loan_date_input.setReadOnly(True)
+
+        self.due_date_input = QLineEdit()
+        self.due_date_input.setText(
+            (date.today() + timedelta(days=14)).isoformat()
+        )
+        self.due_date_input.setReadOnly(True)
+
+        form_layout.addWidget(QLabel("عضو: *"), 0, 0)
+        form_layout.addWidget(self.member_combo, 0, 1)
+
+        form_layout.addWidget(QLabel("کتاب: *"), 0, 2)
+        form_layout.addWidget(self.book_combo, 0, 3)
+
+        form_layout.addWidget(QLabel("تاریخ امانت:"), 1, 0)
+        form_layout.addWidget(self.loan_date_input, 1, 1)
+
+        form_layout.addWidget(QLabel("مهلت بازگشت (۱۴ روز):"), 1, 2)
+        form_layout.addWidget(self.due_date_input, 1, 3)
+
+        self.loan_button = QPushButton("📚 ثبت امانت")
+        self.loan_button.setMinimumHeight(40)
+        self.loan_button.clicked.connect(self.create_loan)
+
+        form_layout.addWidget(self.loan_button, 2, 0, 1, 4)
+
+        form_frame.setLayout(form_layout)
+
+        # ---------- ابزارهای جدول ----------
+        tools_layout = QHBoxLayout()
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText(
+            "🔍 جست‌وجو بر اساس نام عضو یا عنوان کتاب..."
+        )
+        self.search_input.textChanged.connect(self.load_loans)
+
+        self.return_button = QPushButton("✅ ثبت بازگشت کتاب انتخاب‌شده")
+        self.return_button.setMinimumHeight(36)
+        self.return_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00a97f;
+            }
+
+            QPushButton:hover {
+                background-color: #008a68;
+            }
+        """)
+        self.return_button.clicked.connect(self.return_book)
+
+        tools_layout.addWidget(self.search_input, 1)
+        tools_layout.addWidget(self.return_button)
+
+        # ---------- جدول امانت‌ها ----------
+        self.loans_table = QTableWidget()
+        self.loans_table.setColumnCount(8)
+        self.loans_table.setHorizontalHeaderLabels([
+            "شناسه",
+            "عنوان کتاب",
+            "عضو",
+            "تاریخ امانت",
+            "مهلت بازگشت",
+            "تاریخ بازگشت",
+            "وضعیت",
+            "جریمه"
+        ])
+
+        self.loans_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.loans_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.loans_table.setAlternatingRowColors(True)
+        self.loans_table.verticalHeader().setVisible(False)
+
+        header = self.loans_table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+
+        # ---------- چیدمان ----------
+        layout = QVBoxLayout()
+        layout.setContentsMargins(25, 25, 25, 25)
+        layout.setSpacing(14)
+
+        layout.addWidget(title)
+        layout.addWidget(description)
+        layout.addWidget(form_frame)
+        layout.addLayout(tools_layout)
+        layout.addWidget(self.loans_table)
+
+        self.setLayout(layout)
+
+        # ---------- ظاهر ----------
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #f4f7fb;
+                font-family: Tahoma;
+                font-size: 12px;
+            }
+
+            QLabel {
+                color: #334155;
+            }
+
+            QLineEdit, QComboBox {
+                background-color: white;
+                border: 1px solid #b8c4d0;
+                border-radius: 5px;
+                padding: 7px;
+                min-height: 20px;
+            }
+
+            QPushButton {
+                background-color: #2c7be5;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 14px;
+                font-weight: bold;
+            }
+
+            QPushButton:hover {
+                background-color: #1b65c2;
+            }
+
+            QTableWidget {
+                background-color: white;
+                border: 1px solid #dce3ea;
+                border-radius: 6px;
+                gridline-color: #e7edf3;
+            }
+
+            QHeaderView::section {
+                background-color: #1a3b5c;
+                color: white;
+                padding: 8px;
+                border: none;
+                font-weight: bold;
+            }
+
+            QTableWidget::item:selected {
+                background-color: #cfe4ff;
+                color: #1a3b5c;
+            }
+        """)
+
+    def load_members(self):
+        """بارگذاری اعضا در لیست انتخاب عضو"""
+        self.member_combo.clear()
+
+        members = database.fetch_all("""
+            SELECT id, full_name
+            FROM members
+            ORDER BY full_name
+        """)
+
+        if len(members) == 0:
+            self.member_combo.addItem("ابتدا یک عضو ثبت کنید", None)
+            return
+
+        for member in members:
+            self.member_combo.addItem(
+                member["full_name"],
+                member["id"]
+            )
+
+    def load_available_books(self):
+        """نمایش فقط کتاب‌هایی که حداقل یک نسخه موجود دارند"""
+        self.book_combo.clear()
+
+        books = database.fetch_all("""
+            SELECT id, title, author, available_copies
+            FROM books
+            WHERE available_copies > 0
+            ORDER BY title
+        """)
+
+        if len(books) == 0:
+            self.book_combo.addItem("کتاب قابل امانتی وجود ندارد", None)
+            return
+
+        for book in books:
+            text = (
+                f"{book['title']} | {book['author']} "
+                f"(موجودی: {book['available_copies']})"
+            )
+
+            self.book_combo.addItem(text, book["id"])
+
+    def create_loan(self):
+        """ثبت امانت کتاب و کم کردن موجودی"""
+        member_id = self.member_combo.currentData()
+        book_id = self.book_combo.currentData()
+
+        if member_id is None:
+            QMessageBox.warning(
+                self,
+                "عضو وجود ندارد",
+                "برای ثبت امانت، ابتدا حداقل یک عضو ثبت کنید."
+            )
+            return
+
+        if book_id is None:
+            QMessageBox.warning(
+                self,
+                "کتاب موجود نیست",
+                "برای ثبت امانت، ابتدا کتابی با نسخه موجود ثبت کنید."
+            )
+            return
+
+        # بررسی دوباره موجودی کتاب از دیتابیس
+        book = database.fetch_one(
+            "SELECT title, available_copies FROM books WHERE id = ?",
+            (book_id,)
+        )
+
+        if book is None or book["available_copies"] <= 0:
+            QMessageBox.warning(
+                self,
+                "کتاب ناموجود",
+                "این کتاب دیگر نسخه قابل امانت ندارد."
+            )
+            self.load_available_books()
+            return
+
+        loan_date = date.today().isoformat()
+        due_date = (date.today() + timedelta(days=14)).isoformat()
+
+        # ثبت امانت
+        database.execute_query("""
+            INSERT INTO loans (
+                book_id, member_id, loan_date, due_date, return_date, fine_amount
+            )
+            VALUES (?, ?, ?, ?, NULL, 0)
+        """, (book_id, member_id, loan_date, due_date))
+
+        # کم کردن یک نسخه از موجودی کتاب
+        database.execute_query("""
+            UPDATE books
+            SET available_copies = available_copies - 1
+            WHERE id = ?
+        """, (book_id,))
+
+        QMessageBox.information(
+            self,
+            "امانت ثبت شد",
+            f"کتاب «{book['title']}» با موفقیت امانت داده شد.\n"
+            f"مهلت بازگشت: {due_date}"
+        )
+
+        self.load_available_books()
+        self.load_loans()
+
+    def load_loans(self):
+        """نمایش امانت‌ها در جدول"""
+        search_text = self.search_input.text().strip()
+
+        query = """
+            SELECT
+                loans.id,
+                books.title AS book_title,
+                members.full_name AS member_name,
+                loans.loan_date,
+                loans.due_date,
+                loans.return_date,
+                loans.fine_amount
+            FROM loans
+            INNER JOIN books ON loans.book_id = books.id
+            INNER JOIN members ON loans.member_id = members.id
+        """
+
+        parameters = ()
+
+        if search_text != "":
+            query += """
+                WHERE books.title LIKE ?
+                   OR members.full_name LIKE ?
+            """
+
+            search_value = f"%{search_text}%"
+            parameters = (search_value, search_value)
+
+        query += " ORDER BY loans.id DESC"
+
+        loans = database.fetch_all(query, parameters)
+
+        self.loans_table.setRowCount(0)
+
+        today = date.today()
+
+        for row_index, loan in enumerate(loans):
+            self.loans_table.insertRow(row_index)
+
+            if loan["return_date"] is not None:
+                status = "بازگشت داده شده"
+            else:
+                due_date = date.fromisoformat(loan["due_date"])
+
+                if today > due_date:
+                    status = "دیرکرد"
+                else:
+                    status = "در امانت"
+
+            values = [
+                str(loan["id"]),
+                loan["book_title"],
+                loan["member_name"],
+                loan["loan_date"],
+                loan["due_date"],
+                loan["return_date"] or "-",
+                status,
+                str(loan["fine_amount"]) + " تومان"
+            ]
+
+            for column_index, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignCenter)
+
+                # رنگ‌بندی وضعیت‌ها
+                if column_index == 6:
+                    if status == "دیرکرد":
+                        item.setForeground(Qt.red)
+                    elif status == "بازگشت داده شده":
+                        item.setForeground(Qt.darkGreen)
+
+                self.loans_table.setItem(row_index, column_index, item)
+
+    def return_book(self):
+        """ثبت بازگشت کتاب و افزایش موجودی"""
+        selected_row = self.loans_table.currentRow()
+
+        if selected_row == -1:
+            QMessageBox.warning(
+                self,
+                "انتخاب امانت",
+                "ابتدا یک امانت را از جدول انتخاب کنید."
+            )
+            return
+
+        loan_id = self.loans_table.item(selected_row, 0).text()
+
+        loan = database.fetch_one("""
+            SELECT
+                loans.id,
+                loans.book_id,
+                loans.due_date,
+                loans.return_date,
+                books.title AS book_title
+            FROM loans
+            INNER JOIN books ON loans.book_id = books.id
+            WHERE loans.id = ?
+        """, (loan_id,))
+
+        if loan["return_date"] is not None:
+            QMessageBox.warning(
+                self,
+                "بازگشت قبلی",
+                "بازگشت این کتاب قبلاً ثبت شده است."
+            )
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "تأیید بازگشت",
+            f"آیا کتاب «{loan['book_title']}» بازگشت داده شده است؟",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if answer != QMessageBox.Yes:
+            return
+
+        today = date.today()
+        due_date = date.fromisoformat(loan["due_date"])
+
+        # جریمه: برای هر روز دیرکرد، 5000 تومان
+        fine_amount = 0
+
+        if today > due_date:
+            delayed_days = (today - due_date).days
+            fine_amount = delayed_days * 5000
+
+        # ثبت تاریخ بازگشت و مبلغ جریمه
+        database.execute_query("""
+            UPDATE loans
+            SET return_date = ?, fine_amount = ?
+            WHERE id = ?
+        """, (today.isoformat(), fine_amount, loan_id))
+
+        # افزایش موجودی کتاب
+        database.execute_query("""
+            UPDATE books
+            SET available_copies = available_copies + 1
+            WHERE id = ?
+        """, (loan["book_id"],))
+
+        message = "بازگشت کتاب با موفقیت ثبت شد."
+
+        if fine_amount > 0:
+            message += f"\nمبلغ جریمه دیرکرد: {fine_amount} تومان"
+
+        QMessageBox.information(
+            self,
+            "بازگشت موفق",
+            message
+        )
+
+        self.load_available_books()
+        self.load_loans()
+
+
 # ==========================================================
 # پنجره اصلی نرم‌افزار
 # ==========================================================
@@ -801,7 +1259,7 @@ class MainWindow(QMainWindow):
         btn_dashboard.clicked.connect(self.show_dashboard_message)
         btn_books.clicked.connect(self.open_books_window)
         btn_members.clicked.connect(self.open_members_window)
-        btn_loans.clicked.connect(lambda: self.show_coming_soon("امانت و بازگشت کتاب"))
+        btn_loans.clicked.connect(self.open_loans_window)
         btn_reports.clicked.connect(lambda: self.show_coming_soon("گزارش‌ها"))
 
         menu_layout.addWidget(btn_dashboard)
@@ -954,6 +1412,10 @@ class MainWindow(QMainWindow):
     def open_books_window(self):
         self.books_window = BooksWindow(self)
         self.books_window.exec_()
+
+    def open_members_window(self):
+        self.members_window = MembersWindow(self)
+        self.members_window.exec_()
 
     def show_dashboard_message(self):
         QMessageBox.information(
