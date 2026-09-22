@@ -429,7 +429,7 @@ class MainWindow(QMainWindow):
         btn_reports = self.create_menu_button("📊  گزارش‌ها")
 
         btn_dashboard.clicked.connect(self.show_dashboard_message)
-        btn_books.clicked.connect(lambda: self.show_coming_soon("مدیریت کتاب‌ها"))
+        btn_books.clicked.connect(self.open_books_window)
         btn_members.clicked.connect(lambda: self.show_coming_soon("مدیریت اعضا"))
         btn_loans.clicked.connect(lambda: self.show_coming_soon("امانت و بازگشت کتاب"))
         btn_reports.clicked.connect(lambda: self.show_coming_soon("گزارش‌ها"))
@@ -579,6 +579,11 @@ class MainWindow(QMainWindow):
 
         card.setLayout(layout)
         return card
+
+
+    def open_books_window(self):
+        self.books_window = BooksWindow(self)
+        self.books_window.exec_()
 
     def show_dashboard_message(self):
         QMessageBox.information(
