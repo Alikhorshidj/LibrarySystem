@@ -18,6 +18,8 @@ class BooksWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self.editing_book_id = None
+
         self.setWindowTitle("مدیریت کتاب‌ها")
         self.resize(1000, 650)
 
@@ -122,6 +124,19 @@ class BooksWindow(QDialog):
         self.search_input.setPlaceholderText("🔍 جست‌وجو بر اساس عنوان، نویسنده یا شابک...")
         self.search_input.textChanged.connect(self.load_books)
 
+        self.edit_button = QPushButton("✏️ ویرایش کتاب انتخاب‌شده")
+        self.edit_button.setMinimumHeight(36)
+        self.edit_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e8a33d;
+            }
+
+            QPushButton:hover {
+                background-color: #cc8b24;
+            }
+        """)
+        self.edit_button.clicked.connect(self.edit_selected_book)
+        
         self.delete_button = QPushButton("🗑 حذف کتاب انتخاب‌شده")
         self.delete_button.setMinimumHeight(36)
         self.delete_button.setStyleSheet("""
@@ -135,6 +150,7 @@ class BooksWindow(QDialog):
         self.delete_button.clicked.connect(self.delete_book)
 
         search_layout.addWidget(self.search_input, 1)
+        search_layout.addWidget(self.edit_button)
         search_layout.addWidget(self.delete_button)
 
         # ---------- جدول کتاب‌ها ----------
@@ -236,7 +252,8 @@ class BooksWindow(QDialog):
             self.category_combo.addItem(category["name"], category["id"])
 
     def add_book(self):
-        """ثبت کتاب جدید در دیتابیس"""
+        """ثبت کتاب جدید یا ذخیره ویرایش کتاب"""
+
         title = self.title_input.text().strip()
         author = self.author_input.text().strip()
         publisher = self.publisher_input.text().strip()
@@ -267,25 +284,82 @@ class BooksWindow(QDialog):
             self.copies_input.setFocus()
             return
 
-        database.execute_query(
-            """
-            INSERT INTO books (
-                title, author, publisher, isbn,
-                category_id, total_copies, available_copies
+        # -------- حالت ثبت کتاب جدید --------
+        if self.editing_book_id is None:
+            database.execute_query(
+                """
+                INSERT INTO books (
+                    title, author, publisher, isbn,
+                    category_id, total_copies, available_copies
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    title, author, publisher, isbn,
+                    category_id, copies, copies
+                )
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                title, author, publisher, isbn,
-                category_id, copies, copies
-            )
-        )
 
-        QMessageBox.information(
-            self,
-            "ثبت موفق",
-            f"کتاب «{title}» با موفقیت ثبت شد."
-        )
+            QMessageBox.information(
+                self,
+                "ثبت موفق",
+                f"کتاب «{title}» با موفقیت ثبت شد."
+            )
+
+        # -------- حالت ویرایش کتاب موجود --------
+        else:
+            old_book = database.fetch_one(
+                """
+                SELECT total_copies, available_copies
+                FROM books
+                WHERE id = ?
+                """,
+                (self.editing_book_id,)
+            )
+
+            # تعداد کتاب‌هایی که اکنون امانت هستند
+            borrowed_copies = (
+                old_book["total_copies"] - old_book["available_copies"]
+            )
+
+            # تعداد کل نباید از تعداد امانت‌داده‌شده کمتر شود
+            if copies < borrowed_copies:
+                QMessageBox.warning(
+                    self,
+                    "تعداد نامعتبر",
+                    "تعداد نسخه نمی‌تواند از تعداد کتاب‌های امانت‌داده‌شده کمتر باشد.\n"
+                    f"تعداد امانت‌داده‌شده: {borrowed_copies}"
+                )
+                return
+
+            # موجودی جدید = تعداد کل جدید - تعداد امانت‌های فعلی
+            available_copies = copies - borrowed_copies
+
+            database.execute_query(
+                """
+                UPDATE books
+                SET
+                    title = ?,
+                    author = ?,
+                    publisher = ?,
+                    isbn = ?,
+                    category_id = ?,
+                    total_copies = ?,
+                    available_copies = ?
+                WHERE id = ?
+                """,
+                (
+                    title, author, publisher, isbn,
+                    category_id, copies, available_copies,
+                    self.editing_book_id
+                )
+            )
+
+            QMessageBox.information(
+                self,
+                "ویرایش موفق",
+                f"اطلاعات کتاب «{title}» با موفقیت ویرایش شد."
+            )
 
         self.clear_form()
         self.load_books()
@@ -342,14 +416,86 @@ class BooksWindow(QDialog):
                 item.setTextAlignment(Qt.AlignCenter)
                 self.books_table.setItem(row_index, column_index, item)
 
+    def edit_selected_book(self):
+        """نمایش اطلاعات کتاب انتخاب‌شده در فرم برای ویرایش"""
+
+        selected_row = self.books_table.currentRow()
+
+        if selected_row == -1:
+            QMessageBox.warning(
+                self,
+                "انتخاب کتاب",
+                "ابتدا یک کتاب را از جدول انتخاب کنید."
+            )
+            return
+
+        book_id = self.books_table.item(selected_row, 0).text()
+
+        book = database.fetch_one(
+            "SELECT * FROM books WHERE id = ?",
+            (book_id,)
+        )
+
+        if book is None:
+            QMessageBox.warning(
+                self,
+                "خطا",
+                "کتاب انتخاب‌شده پیدا نشد."
+            )
+            return
+
+        self.editing_book_id = book["id"]
+
+        self.title_input.setText(book["title"] or "")
+        self.author_input.setText(book["author"] or "")
+        self.publisher_input.setText(book["publisher"] or "")
+        self.isbn_input.setText(book["isbn"] or "")
+        self.copies_input.setText(str(book["total_copies"]))
+
+        # انتخاب دسته‌بندی فعلی در ComboBox
+        category_index = self.category_combo.findData(book["category_id"])
+
+        if category_index >= 0:
+            self.category_combo.setCurrentIndex(category_index)
+
+        # تغییر ظاهر دکمه ثبت
+        self.add_button.setText("💾 ذخیره تغییرات")
+        self.add_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00a97f;
+            }
+
+            QPushButton:hover {
+                background-color: #008a68;
+            }
+        """)
+
+        self.title_input.setFocus()
+
+        QMessageBox.information(
+            self,
+            "حالت ویرایش",
+            "اطلاعات کتاب داخل فرم قرار گرفت.\n"
+            "پس از اعمال تغییرات، روی «ذخیره تغییرات» بزنید."
+        )
+
+        
     def clear_form(self):
-        """خالی‌کردن فرم ثبت کتاب"""
+        """پاک‌کردن فرم و خروج از حالت ویرایش"""
+
+        self.editing_book_id = None
+
         self.title_input.clear()
         self.author_input.clear()
         self.publisher_input.clear()
         self.isbn_input.clear()
         self.copies_input.setText("1")
         self.category_combo.setCurrentIndex(0)
+
+        # بازگرداندن دکمه به حالت ثبت کتاب جدید
+        self.add_button.setText("➕ ثبت کتاب")
+        self.add_button.setStyleSheet("")
+
         self.title_input.setFocus()
 
     def delete_book(self):
