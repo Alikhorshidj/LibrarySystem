@@ -13,9 +13,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 
-# ==========================================================
+
 # پنجره مدیریت کتاب‌ها
-# ==========================================================
 class BooksWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -30,7 +29,7 @@ class BooksWindow(QDialog):
         self.load_books()
 
     def create_ui(self):
-        # ---------- عنوان ----------
+        #عنوان 
         title = QLabel("📖 مدیریت کتاب‌ها")
         title.setStyleSheet("""
             color: #1a3b5c;
@@ -43,7 +42,7 @@ class BooksWindow(QDialog):
         )
         description.setStyleSheet("color: #718096;")
 
-        # ---------- فرم افزودن کتاب ----------
+        # فرم افزودن کتاب 
         form_frame = QFrame()
         form_frame.setStyleSheet("""
             QFrame {
@@ -119,7 +118,7 @@ class BooksWindow(QDialog):
 
         form_frame.setLayout(form_layout)
 
-        # ---------- جست‌وجو و حذف ----------
+        # جست‌وجو و حذف 
         search_layout = QHBoxLayout()
 
         self.search_input = QLineEdit()
@@ -155,7 +154,7 @@ class BooksWindow(QDialog):
         search_layout.addWidget(self.edit_button)
         search_layout.addWidget(self.delete_button)
 
-        # ---------- جدول کتاب‌ها ----------
+        # جدول کتاب‌ها 
         self.books_table = QTableWidget()
         self.books_table.setColumnCount(7)
         self.books_table.setHorizontalHeaderLabels([
@@ -171,7 +170,7 @@ class BooksWindow(QDialog):
         header = self.books_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
 
-        # ---------- چیدمان اصلی ----------
+        # چیدمان اصلی 
         layout = QVBoxLayout()
         layout.setContentsMargins(25, 25, 25, 25)
         layout.setSpacing(14)
@@ -184,7 +183,7 @@ class BooksWindow(QDialog):
 
         self.setLayout(layout)
 
-        # ---------- ظاهر ----------
+        # ظاهر 
         self.setStyleSheet("""
             QDialog {
                 background-color: #f4f7fb;
@@ -286,7 +285,7 @@ class BooksWindow(QDialog):
             self.copies_input.setFocus()
             return
 
-        # -------- حالت ثبت کتاب جدید --------
+        # حالت ثبت کتاب جدید 
         if self.editing_book_id is None:
             database.execute_query(
                 """
@@ -308,7 +307,7 @@ class BooksWindow(QDialog):
                 f"کتاب «{title}» با موفقیت ثبت شد."
             )
 
-        # -------- حالت ویرایش کتاب موجود --------
+        # حالت ویرایش کتاب موجود 
         else:
             old_book = database.fetch_one(
                 """
@@ -537,9 +536,7 @@ class BooksWindow(QDialog):
 
             self.load_books()
 
-# ==========================================================
 # پنجره مدیریت اعضای کتابخانه
-# ==========================================================
 class MembersWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -553,7 +550,7 @@ class MembersWindow(QDialog):
         self.load_members()
 
     def create_ui(self):
-        # ---------- عنوان ----------
+        # عنوان 
         title = QLabel("👥 مدیریت اعضای کتابخانه")
         title.setStyleSheet("""
             color: #1a3b5c;
@@ -631,7 +628,7 @@ class MembersWindow(QDialog):
 
         form_frame.setLayout(form_layout)
 
-        # ---------- جست‌وجو و حذف ----------
+        # جست‌وجو و حذف 
         search_layout = QHBoxLayout()
 
         self.search_input = QLineEdit()
@@ -670,7 +667,7 @@ class MembersWindow(QDialog):
         search_layout.addWidget(self.edit_button)
         search_layout.addWidget(self.delete_button)
 
-        # ---------- جدول اعضا ----------
+        # جدول اعضا 
         self.members_table = QTableWidget()
         self.members_table.setColumnCount(6)
         self.members_table.setHorizontalHeaderLabels([
@@ -690,7 +687,7 @@ class MembersWindow(QDialog):
         header = self.members_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
 
-        # ---------- چیدمان صفحه ----------
+        # چیدمان صفحه 
         layout = QVBoxLayout()
         layout.setContentsMargins(25, 25, 25, 25)
         layout.setSpacing(14)
@@ -703,7 +700,7 @@ class MembersWindow(QDialog):
 
         self.setLayout(layout)
 
-        # ---------- ظاهر ----------
+        # ظاهر 
         self.setStyleSheet("""
             QDialog {
                 background-color: #f4f7fb;
@@ -803,7 +800,7 @@ class MembersWindow(QDialog):
                 )
                 return
 
-        # -------- ثبت عضو جدید --------
+        # ثبت عضو جدید 
         if self.editing_member_id is None:
             database.execute_query(
                 """
@@ -821,7 +818,7 @@ class MembersWindow(QDialog):
                 f"عضو «{full_name}» با موفقیت ثبت شد."
             )
 
-        # -------- ویرایش عضو --------
+        # ویرایش عضو 
         else:
             database.execute_query(
                 """
@@ -1027,9 +1024,7 @@ class MembersWindow(QDialog):
 
             self.load_members()
 
-# ==========================================================
 # پنجره امانت و بازگشت کتاب
-# ==========================================================
 class LoansWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1043,7 +1038,7 @@ class LoansWindow(QDialog):
         self.load_loans()
 
     def create_ui(self):
-        # ---------- عنوان ----------
+        # عنوان 
         title = QLabel("🔄 امانت و بازگشت کتاب")
         title.setStyleSheet("""
             color: #1a3b5c;
@@ -1056,7 +1051,7 @@ class LoansWindow(QDialog):
         )
         description.setStyleSheet("color: #718096;")
 
-        # ---------- فرم ثبت امانت ----------
+        #فرم ثبت امانت 
         form_frame = QFrame()
         form_frame.setStyleSheet("""
             QFrame {
@@ -1104,7 +1099,7 @@ class LoansWindow(QDialog):
 
         form_frame.setLayout(form_layout)
 
-        # ---------- ابزارهای جدول ----------
+        # ابزارهای جدول 
         tools_layout = QHBoxLayout()
 
         self.search_input = QLineEdit()
@@ -1129,7 +1124,7 @@ class LoansWindow(QDialog):
         tools_layout.addWidget(self.search_input, 1)
         tools_layout.addWidget(self.return_button)
 
-        # ---------- جدول امانت‌ها ----------
+        #جدول امانت‌ها 
         self.loans_table = QTableWidget()
         self.loans_table.setColumnCount(8)
         self.loans_table.setHorizontalHeaderLabels([
@@ -1164,7 +1159,7 @@ class LoansWindow(QDialog):
 
         self.setLayout(layout)
 
-        # ---------- ظاهر ----------
+        # ظاهر 
         self.setStyleSheet("""
             QDialog {
                 background-color: #f4f7fb;
@@ -1482,9 +1477,7 @@ class LoansWindow(QDialog):
         self.load_available_books()
         self.load_loans()
 
-# ==========================================================
 # پنجره گزارش‌ها
-# ==========================================================
 class ReportsWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1725,9 +1718,7 @@ class ReportsWindow(QDialog):
                 )
 
 
-# ==========================================================
 # پنجره اصلی نرم‌افزار
-# ==========================================================
 class MainWindow(QMainWindow):
     def __init__(self, full_name="کاربر"):
         super().__init__()
@@ -1804,7 +1795,7 @@ class MainWindow(QMainWindow):
 
         sidebar.setLayout(menu_layout)
 
-        # ---------- بخش محتوای اصلی ----------
+        #  بخش محتوای اصلی
         content = QWidget()
         content_layout = QVBoxLayout()
         content_layout.setContentsMargins(35, 30, 35, 30)
@@ -2095,9 +2086,7 @@ class MainWindow(QMainWindow):
             self.close()
 
 
-# ==========================================================
 # فرم ورود
-# ==========================================================
 class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -2224,9 +2213,7 @@ class LoginWindow(QWidget):
     
 
 database.initialize_database()
-# ==========================================================
 # اجرای برنامه
-# ==========================================================
 app = QApplication(sys.argv)
 app.setLayoutDirection(Qt.RightToLeft)
 
