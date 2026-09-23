@@ -1979,10 +1979,8 @@ class MainWindow(QMainWindow):
         """ایجاد یک نسخه پشتیبان از فایل دیتابیس library.db"""
 
         # پوشه‌ای که فایل database.py داخل آن قرار دارد
-        project_folder = Path(database.__file__).resolve().parent
-
-        # مسیر فایل اصلی دیتابیس
-        database_file = project_folder / "library.db"
+        database_file = Path(database.DB_NAME)
+        project_folder = database_file.parent
 
         if not database_file.exists():
             QMessageBox.warning(

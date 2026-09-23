@@ -1,15 +1,25 @@
 import sqlite3
-import os
+import sys
+from pathlib import Path
 
 
-# فایل دیتابیس در همان پوشه پروژه ساخته می‌شود
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_FILE = os.path.join(BASE_DIR, "library.db")
+# اگر برنامه به exe تبدیل شده باشد، دیتابیس کنار فایل exe قرار می‌گیرد.
+# در حالت اجرای عادی پایتون نیز کنار فایل database.py خواهد بود.
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(sys.executable).resolve().parent
+else:
+    BASE_DIR = Path(__file__).resolve().parent
+
+DB_NAME = BASE_DIR / "library.db"
+
+# # فایل دیتابیس در همان پوشه پروژه ساخته می‌شود
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# DATABASE_FILE = os.path.join(BASE_DIR, "library.db")
 
 
 def get_connection():
     """ایجاد اتصال به دیتابیس"""
-    connection = sqlite3.connect(DATABASE_FILE)
+    connection = sqlite3.connect(str(DB_NAME))
     connection.row_factory = sqlite3.Row
     return connection
 
