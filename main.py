@@ -638,6 +638,19 @@ class MembersWindow(QDialog):
         )
         self.search_input.textChanged.connect(self.load_members)
 
+        self.edit_button = QPushButton("✏️ ویرایش عضو انتخاب‌شده")
+        self.edit_button.setMinimumHeight(36)
+        self.edit_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e8a33d;
+            }
+
+            QPushButton:hover {
+                background-color: #cc8b24;
+            }
+        """)
+        self.edit_button.clicked.connect(self.edit_selected_member)
+
         self.delete_button = QPushButton("🗑 حذف عضو انتخاب‌شده")
         self.delete_button.setMinimumHeight(36)
         self.delete_button.setStyleSheet("""
@@ -652,6 +665,7 @@ class MembersWindow(QDialog):
         self.delete_button.clicked.connect(self.delete_member)
 
         search_layout.addWidget(self.search_input, 1)
+        search_layout.addWidget(self.edit_button)
         search_layout.addWidget(self.delete_button)
 
         # ---------- جدول اعضا ----------
@@ -746,7 +760,8 @@ class MembersWindow(QDialog):
         """)
 
     def add_member(self):
-        """ثبت عضو جدید در دیتابیس"""
+        """ثبت عضو جدید یا ذخیره ویرایش عضو"""
+
         full_name = self.full_name_input.text().strip()
         national_code = self.national_code_input.text().strip()
         phone = self.phone_input.text().strip()
@@ -761,12 +776,22 @@ class MembersWindow(QDialog):
             self.full_name_input.setFocus()
             return
 
-        # جلوگیری از ثبت کد ملی تکراری، در صورتی که وارد شده باشد
+        # جلوگیری از تکراری‌بودن کد ملی
+        # در حالت ویرایش، شناسه عضو فعلی از بررسی حذف می‌شود.
         if national_code != "":
-            duplicate_member = database.fetch_one(
-                "SELECT id FROM members WHERE national_code = ?",
-                (national_code,)
-            )
+            if self.editing_member_id is None:
+                duplicate_member = database.fetch_one(
+                    "SELECT id FROM members WHERE national_code = ?",
+                    (national_code,)
+                )
+            else:
+                duplicate_member = database.fetch_one(
+                    """
+                    SELECT id FROM members
+                    WHERE national_code = ? AND id != ?
+                    """,
+                    (national_code, self.editing_member_id)
+                )
 
             if duplicate_member is not None:
                 QMessageBox.warning(
@@ -776,21 +801,50 @@ class MembersWindow(QDialog):
                 )
                 return
 
-        database.execute_query(
-            """
-            INSERT INTO members (
-                full_name, national_code, phone, email, register_date
+        # -------- ثبت عضو جدید --------
+        if self.editing_member_id is None:
+            database.execute_query(
+                """
+                INSERT INTO members (
+                    full_name, national_code, phone, email, register_date
+                )
+                VALUES (?, ?, ?, ?, date('now'))
+                """,
+                (full_name, national_code, phone, email)
             )
-            VALUES (?, ?, ?, ?, date('now'))
-            """,
-            (full_name, national_code, phone, email)
-        )
 
-        QMessageBox.information(
-            self,
-            "ثبت موفق",
-            f"عضو «{full_name}» با موفقیت ثبت شد."
-        )
+            QMessageBox.information(
+                self,
+                "ثبت موفق",
+                f"عضو «{full_name}» با موفقیت ثبت شد."
+            )
+
+        # -------- ویرایش عضو --------
+        else:
+            database.execute_query(
+                """
+                UPDATE members
+                SET
+                    full_name = ?,
+                    national_code = ?,
+                    phone = ?,
+                    email = ?
+                WHERE id = ?
+                """,
+                (
+                    full_name,
+                    national_code,
+                    phone,
+                    email,
+                    self.editing_member_id
+                )
+            )
+
+            QMessageBox.information(
+                self,
+                "ویرایش موفق",
+                f"اطلاعات عضو «{full_name}» با موفقیت ویرایش شد."
+            )
 
         self.clear_form()
         self.load_members()
@@ -845,12 +899,76 @@ class MembersWindow(QDialog):
                 item.setTextAlignment(Qt.AlignCenter)
                 self.members_table.setItem(row_index, column_index, item)
 
+    def edit_selected_member(self):
+        """نمایش اطلاعات عضو انتخاب‌شده در فرم برای ویرایش"""
+
+        selected_row = self.members_table.currentRow()
+
+        if selected_row == -1:
+            QMessageBox.warning(
+                self,
+                "انتخاب عضو",
+                "ابتدا یک عضو را از جدول انتخاب کنید."
+            )
+            return
+
+        member_id = self.members_table.item(selected_row, 0).text()
+
+        member = database.fetch_one(
+            "SELECT * FROM members WHERE id = ?",
+            (member_id,)
+        )
+
+        if member is None:
+            QMessageBox.warning(
+                self,
+                "خطا",
+                "عضو انتخاب‌شده پیدا نشد."
+            )
+            return
+
+        self.editing_member_id = member["id"]
+
+        self.full_name_input.setText(member["full_name"] or "")
+        self.national_code_input.setText(member["national_code"] or "")
+        self.phone_input.setText(member["phone"] or "")
+        self.email_input.setText(member["email"] or "")
+
+        # تغییر دکمه ثبت به ذخیره تغییرات
+        self.add_button.setText("💾 ذخیره تغییرات")
+        self.add_button.setStyleSheet("""
+            QPushButton {
+                background-color: #00a97f;
+            }
+
+            QPushButton:hover {
+                background-color: #008a68;
+            }
+        """)
+
+        self.full_name_input.setFocus()
+
+        QMessageBox.information(
+            self,
+            "حالت ویرایش",
+            "اطلاعات عضو داخل فرم قرار گرفت.\n"
+            "پس از اعمال تغییرات، روی «ذخیره تغییرات» بزنید."
+        )
+
     def clear_form(self):
-        """پاک‌کردن فرم ثبت عضو"""
+        """پاک‌کردن فرم و خروج از حالت ویرایش"""
+
+        self.editing_member_id = None
+
         self.full_name_input.clear()
         self.national_code_input.clear()
         self.phone_input.clear()
         self.email_input.clear()
+
+        # بازگرداندن دکمه به حالت ثبت عضو جدید
+        self.add_button.setText("➕ ثبت عضو")
+        self.add_button.setStyleSheet("")
+
         self.full_name_input.setFocus()
 
     def delete_member(self):
