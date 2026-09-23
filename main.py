@@ -542,6 +542,8 @@ class MembersWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self.editing_member_id = None
+
         self.setWindowTitle("مدیریت اعضا")
         self.resize(1000, 650)
 
