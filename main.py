@@ -1,11 +1,13 @@
 import sys
 import database
+import shutil
+from pathlib import Path
 from datetime import date, timedelta
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QMainWindow, QDialog,
     QLabel, QLineEdit, QPushButton,
     QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout,
-    QMessageBox, QFrame, QComboBox,
+    QMessageBox, QFrame, QComboBox, QFileDialog,
     QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt5.QtCore import Qt
@@ -1764,6 +1766,10 @@ class MainWindow(QMainWindow):
         btn_loans = self.create_menu_button("🔄  امانت و بازگشت")
         btn_reports = self.create_menu_button("📊  گزارش‌ها")
 
+        btn_backup = QPushButton("💾 تهیه نسخه پشتیبان")
+        btn_backup.setMinimumHeight(45)
+        btn_backup.clicked.connect(self.create_database_backup)
+
         btn_dashboard.clicked.connect(self.show_dashboard_message)
         btn_books.clicked.connect(self.open_books_window)
         btn_members.clicked.connect(self.open_members_window)
@@ -1775,6 +1781,7 @@ class MainWindow(QMainWindow):
         menu_layout.addWidget(btn_members)
         menu_layout.addWidget(btn_loans)
         menu_layout.addWidget(btn_reports)
+        menu_layout.addWidget(btn_backup)
 
         menu_layout.addStretch()
 
@@ -1967,6 +1974,61 @@ class MainWindow(QMainWindow):
         self.reports_window = ReportsWindow(self)
         self.reports_window.exec_()
         self.refresh_dashboard()
+
+    def create_database_backup(self):
+        """ایجاد یک نسخه پشتیبان از فایل دیتابیس library.db"""
+
+        # پوشه‌ای که فایل database.py داخل آن قرار دارد
+        project_folder = Path(database.__file__).resolve().parent
+
+        # مسیر فایل اصلی دیتابیس
+        database_file = project_folder / "library.db"
+
+        if not database_file.exists():
+            QMessageBox.warning(
+                self,
+                "دیتابیس پیدا نشد",
+                "فایل library.db پیدا نشد؛ بنابراین امکان تهیه نسخه پشتیبان وجود ندارد."
+            )
+            return
+
+        # نام پیشنهادی فایل بکاپ با تاریخ و ساعت فعلی
+        from datetime import datetime
+
+        backup_name = (
+            f"library_backup_"
+            f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.db"
+        )
+
+        # انتخاب محل ذخیره بکاپ توسط کاربر
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "ذخیره نسخه پشتیبان دیتابیس",
+            str(project_folder / backup_name),
+            "Database Files (*.db);;All Files (*)"
+        )
+
+        # اگر کاربر پنجره انتخاب مسیر را بست
+        if save_path == "":
+            return
+
+        try:
+            shutil.copy2(str(database_file), save_path)
+
+            QMessageBox.information(
+                self,
+                "بکاپ موفق",
+                "نسخه پشتیبان دیتابیس با موفقیت ایجاد شد.\n\n"
+                f"مسیر فایل:\n{save_path}"
+            )
+
+        except Exception as error:
+            QMessageBox.critical(
+                self,
+                "خطا در بکاپ‌گیری",
+                f"امکان ایجاد نسخه پشتیبان وجود نداشت.\n\n"
+                f"جزئیات خطا:\n{error}"
+            )
 
     def refresh_dashboard(self):
         """خواندن آمار واقعی از دیتابیس و نمایش در کارت‌های داشبورد"""
